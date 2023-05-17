@@ -4,6 +4,7 @@ from django.http import JsonResponse
 from django.templatetags.static import static
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework import status
 
 
 from .models import Product
@@ -76,12 +77,32 @@ def register_order(request):
         phonenumber=requested_order['phonenumber'],
         address=requested_order['address'],
     )
+    try:
+        products = requested_order['products']
+    except KeyError:
+        return Response({
+            'error': 'products - обязательное поле.'
+        }, status=status.HTTP_400_BAD_REQUEST)
 
-    products = requested_order.get('products', []) if is_create else []
+    if products is None:
+        return Response({
+            'error': 'products поле не может быть пустым.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    elif not isinstance(products, list):
+        return Response({
+            'error': 'products: ожидался list со значениями, но был получен \'str\'.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    elif not products:
+        return Response({
+            'error': 'Список products не может быть пустым.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
     for product in products:
         order.items.get_or_create(
             product_id=product['product'],
             count=product['quantity'],
         )
-    print(requested_order)
+
     return Response(requested_order)

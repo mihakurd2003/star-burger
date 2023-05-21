@@ -2,12 +2,12 @@ from django.http import JsonResponse
 from django.templatetags.static import static
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework.serializers import ValidationError, ModelSerializer
+from rest_framework.serializers import CharField, PrimaryKeyRelatedField
 import phonenumbers
 
-
 from .models import Product
-from .models import Order
+from .models import Order, OrderItem
 
 
 def banners_list_api(request):
@@ -62,75 +62,46 @@ def product_list_api(request):
     })
 
 
-def validate_fields(request_body, field_names):
-    if not request_body:
-        return Response({
-            'response': 'no data',
-        }, status=status.HTTP_400_BAD_REQUEST)
+class OrderItemSerializer(ModelSerializer):
+    class Meta:
+        model = OrderItem
+        fields = ['product', 'quantity']
 
-    for field_name in field_names:
+
+class OrderSerializer(ModelSerializer):
+    products = OrderItemSerializer(many=True, allow_empty=False)
+    phonenumber = CharField()
+
+    class Meta:
+        model = Order
+        fields = ['firstname', 'lastname', 'phonenumber', 'address', 'products']
+
+    def validate_phonenumber(self, value):
+        error_msg = 'Введен некорректный номер телефона.'
         try:
-            field = request_body[field_name]
-        except KeyError:
-            return Response({
-                'error': f'{field_name} - обязательное поле.'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            phonenumber = phonenumbers.parse(value, 'RU')
+            if not phonenumbers.is_valid_number(phonenumber):
+                raise ValidationError(error_msg)
+        except phonenumbers.phonenumberutil.NumberParseException:
+            raise ValidationError(error_msg)
 
-        if field_name != 'products' and isinstance(field, list):
-            return Response({
-                'error': f'В поле {field_name} положили список.'
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        if not field:
-            return Response({
-                'error': f'{field_name} поле не может быть пустым.'
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        if field_name == 'products':
-            if not isinstance(field, list):
-                return Response({
-                    'error': 'products: ожидался list со значениями, но был получен \'str\'.'
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            for product in field:
-                if product['product'] > 200:
-                    return Response({
-                        'error': f'Недопустимый первичный ключ продукта \'{product["product"]}\''
-                    }, status=status.HTTP_400_BAD_REQUEST)
-
-        if field_name == 'phonenumber':
-            error_msg = Response({
-                'error': 'Введен некорректный номер телефона.'
-            }, status=status.HTTP_400_BAD_REQUEST)
-            try:
-                phonenumber = phonenumbers.parse(field, 'RU')
-                if not phonenumbers.is_valid_number(phonenumber):
-                    return error_msg
-            except phonenumbers.phonenumberutil.NumberParseException:
-                return error_msg
+        return value
 
 
 @api_view(['POST'])
 def register_order(request):
-    requested_order = request.data
-
-    not_valid = validate_fields(requested_order, field_names=['firstname', 'lastname', 'phonenumber', 'address', 'products'])
-    if not_valid:
-        return not_valid
+    serializer = OrderSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
 
     order, is_create = Order.objects.get_or_create(
-        firstname=requested_order['firstname'],
-        lastname=requested_order['lastname'],
-        phonenumber=requested_order['phonenumber'],
-        address=requested_order['address'],
+        firstname=serializer.validated_data['firstname'],
+        lastname=serializer.validated_data['lastname'],
+        phonenumber=serializer.validated_data['phonenumber'],
+        address=serializer.validated_data['address'],
     )
 
-    products = requested_order['products']
+    product_fields = serializer.validated_data['products']
+    products = [OrderItem(order=order, **fields) for fields in product_fields]
+    OrderItem.objects.bulk_create(products)
 
-    for product in products:
-        order.items.get_or_create(
-            product_id=product['product'],
-            count=product['quantity'],
-        )
-
-    return Response(requested_order)
+    return Response(request.data)

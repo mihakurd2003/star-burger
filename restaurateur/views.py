@@ -9,6 +9,7 @@ from django.contrib.auth import views as auth_views
 
 
 from foodcartapp.models import Product, Restaurant
+from foodcartapp.models import Order, OrderItem
 
 
 class Login(forms.Form):
@@ -51,7 +52,7 @@ class LoginView(View):
 
         return render(request, "login.html", context={
             'form': form,
-            'ivalid': True,
+            'invalid': True,
         })
 
 
@@ -92,6 +93,7 @@ def view_restaurants(request):
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
+    order_items = Order.objects.order_by('id')
     return render(request, template_name='order_items.html', context={
-        # TODO заглушка для нереализованного функционала
+        'order_items': order_items
     })

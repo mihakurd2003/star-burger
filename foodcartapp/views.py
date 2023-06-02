@@ -1,10 +1,10 @@
 from django.http import JsonResponse
 from django.templatetags.static import static
 from rest_framework.decorators import api_view
-from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError, ModelSerializer
-from rest_framework.serializers import CharField, PrimaryKeyRelatedField
+from rest_framework.serializers import CharField
+from django.db import transaction
 import phonenumbers
 
 from .models import Product
@@ -77,6 +77,7 @@ class OrderSerializer(ModelSerializer):
         model = Order
         fields = ['id', 'firstname', 'lastname', 'phonenumber', 'address', 'products']
 
+    @transaction.atomic
     def create(self, validated_data):
         order, is_create = Order.objects.get_or_create(
             firstname=validated_data['firstname'],
@@ -84,6 +85,7 @@ class OrderSerializer(ModelSerializer):
             phonenumber=validated_data['phonenumber'],
             address=validated_data['address'],
         )
+        print(0/0)
 
         product_fields = [{**field, 'price': field['product'].price} for field in validated_data['products']]
         products = [OrderItem(order=order, **product) for product in product_fields]

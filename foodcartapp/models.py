@@ -139,6 +139,20 @@ class Order(models.Model):
     phonenumber = PhoneNumberField('Телефон', db_index=True, region='RU')
     address = models.CharField('Адрес', max_length=200, db_index=True)
 
+    ORDER_STATUSES = [
+        ('raw', 'Необработанный'),
+        ('in_assemble', 'В сборке'),
+        ('in_delivery', 'В доставке'),
+        ('completed', 'Выполнен'),
+    ]
+    status = models.CharField(
+        'Статус заказа',
+        choices=ORDER_STATUSES,
+        max_length=30,
+        default='raw',
+        db_index=True
+    )
+
     objects = OrderQuerySet.as_manager()
 
     class Meta:

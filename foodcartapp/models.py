@@ -152,6 +152,10 @@ class Order(models.Model):
         default='raw',
         db_index=True
     )
+    comment = models.TextField(
+        'Комментарий',
+        blank=True,
+    )
 
     objects = OrderQuerySet.as_manager()
 
@@ -160,7 +164,7 @@ class Order(models.Model):
         verbose_name_plural = 'заказы'
 
     def __str__(self):
-        return f'{self.firstname} {self.lastname}, {self.address}'
+        return f'{self.firstname} {self.lastname}, {self.address} Статус: {self.status}'
 
 
 class OrderItem(models.Model):

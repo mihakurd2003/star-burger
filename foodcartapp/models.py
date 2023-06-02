@@ -32,8 +32,8 @@ class ProductQuerySet(models.QuerySet):
     def available(self):
         products = (
             RestaurantMenuItem.objects
-            .filter(availability=True)
-            .values_list('product')
+                .filter(availability=True)
+                .values_list('product')
         )
         return self.filter(pk__in=products)
 
@@ -128,7 +128,7 @@ class RestaurantMenuItem(models.Model):
 class OrderQuerySet(models.QuerySet):
 
     def get_order_amount(self):
-        order_items = self.annotate(order_cost=Sum(F('items__product__price') * F('items__quantity'))).order_by('id')
+        order_items = self.annotate(order_cost=Sum(F('items__price') * F('items__quantity'))).order_by('id')
 
         return order_items
 
@@ -156,12 +156,20 @@ class OrderItem(models.Model):
         verbose_name='Товар',
         related_name='items',
     )
-    quantity = models.IntegerField('Количество', db_index=True)
     order = models.ForeignKey(
         Order,
         on_delete=models.CASCADE,
         verbose_name='Заказ',
         related_name='items',
+    )
+    quantity = models.IntegerField('Количество', db_index=True)
+    price = models.DecimalField(
+        'Цена',
+        max_digits=8,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        null=True,
+        blank=True,
     )
 
     class Meta:
@@ -170,3 +178,4 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f'{self.product} - {self.quantity}, {self.order}'
+

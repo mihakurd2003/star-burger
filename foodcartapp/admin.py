@@ -3,6 +3,7 @@ from django.shortcuts import reverse
 from django.templatetags.static import static
 from django.utils.html import format_html
 
+
 from .models import Product, ProductCategory
 from .models import Restaurant, RestaurantMenuItem
 from .models import Order, OrderItem
@@ -10,6 +11,13 @@ from .models import Order, OrderItem
 
 class RestaurantMenuItemInline(admin.TabularInline):
     model = RestaurantMenuItem
+    extra = 0
+
+
+class OrderItemInline(admin.TabularInline):
+    model = OrderItem
+    raw_id_fields = ['product']
+    readonly_fields = ['price']
     extra = 0
 
 
@@ -52,7 +60,7 @@ class ProductAdmin(admin.ModelAdmin):
     ]
 
     inlines = [
-        RestaurantMenuItemInline
+        RestaurantMenuItemInline,
     ]
     fieldsets = (
         ('Общее', {
@@ -105,12 +113,6 @@ class ProductAdmin(admin.ModelAdmin):
     pass
 
 
-class OrderItemInline(admin.TabularInline):
-    model = OrderItem
-    raw_id_fields = ['product']
-    extra = 0
-
-
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = [
@@ -128,7 +130,15 @@ class OrderAdmin(admin.ModelAdmin):
 
     inlines = [OrderItemInline]
 
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for instance in instances:
+            instance.price = instance.product.price
+            instance.save()
+        formset.save_m2m()
+
 
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
     ...
+

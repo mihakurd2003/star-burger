@@ -85,7 +85,6 @@ class OrderSerializer(ModelSerializer):
             phonenumber=validated_data['phonenumber'],
             address=validated_data['address'],
         )
-        print(0/0)
 
         product_fields = [{**field, 'price': field['product'].price} for field in validated_data['products']]
         products = [OrderItem(order=order, **product) for product in product_fields]

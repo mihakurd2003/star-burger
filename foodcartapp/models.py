@@ -2,6 +2,7 @@ from django.db import models
 from django.core.validators import MinValueValidator
 from phonenumber_field.modelfields import PhoneNumberField
 from django.db.models import F, Sum
+from django.utils import timezone
 
 
 class Restaurant(models.Model):
@@ -134,17 +135,17 @@ class OrderQuerySet(models.QuerySet):
 
 
 class Order(models.Model):
-    firstname = models.CharField('Имя', max_length=50, db_index=True)
-    lastname = models.CharField('Фамилия', max_length=50, db_index=True)
-    phonenumber = PhoneNumberField('Телефон', db_index=True, region='RU')
-    address = models.CharField('Адрес', max_length=200, db_index=True)
-
     ORDER_STATUSES = [
         ('raw', 'Необработанный'),
         ('in_assemble', 'В сборке'),
         ('in_delivery', 'В доставке'),
         ('completed', 'Выполнен'),
     ]
+
+    firstname = models.CharField('Имя', max_length=50, db_index=True)
+    lastname = models.CharField('Фамилия', max_length=50, db_index=True)
+    phonenumber = PhoneNumberField('Телефон', db_index=True, region='RU')
+    address = models.CharField('Адрес', max_length=200, db_index=True)
     status = models.CharField(
         'Статус заказа',
         choices=ORDER_STATUSES,
@@ -155,6 +156,21 @@ class Order(models.Model):
     comment = models.TextField(
         'Комментарий',
         blank=True,
+    )
+    registrated_at = models.DateTimeField(
+        'Дата и время оформления',
+        default=timezone.now,
+        db_index=True,
+    )
+    called_at = models.DateTimeField(
+        'Дата и время звонка',
+        db_index=True,
+        null=True, blank=True,
+    )
+    delivered_at = models.DateTimeField(
+        'Дата и время доставки',
+        db_index=True,
+        null=True, blank=True,
     )
 
     objects = OrderQuerySet.as_manager()

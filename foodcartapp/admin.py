@@ -120,13 +120,13 @@ class OrderAdmin(admin.ModelAdmin):
         'status',
         'phonenumber',
         'address',
+        'registrated_at'
     ]
     search_fields = [
         'firstname',
         'lastname',
         'phonenumber',
         'address',
-        'status',
     ]
     list_filter = ['status']
 

@@ -141,6 +141,10 @@ class Order(models.Model):
         ('in_delivery', 'В доставке'),
         ('completed', 'Выполнен'),
     ]
+    PAYMENT_METHODS = [
+        ('cash', 'Наличностью'),
+        ('electronic', 'Электронная'),
+    ]
 
     firstname = models.CharField('Имя', max_length=50, db_index=True)
     lastname = models.CharField('Фамилия', max_length=50, db_index=True)
@@ -171,6 +175,13 @@ class Order(models.Model):
         'Дата и время доставки',
         db_index=True,
         null=True, blank=True,
+    )
+    payment_method = models.CharField(
+        'Способ оплаты',
+        choices=PAYMENT_METHODS,
+        max_length=20,
+        default='cash',
+        db_index=True,
     )
 
     objects = OrderQuerySet.as_manager()

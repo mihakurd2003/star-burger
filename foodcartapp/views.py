@@ -114,3 +114,4 @@ def register_order(request):
     serializer = OrderSerializer(order)
 
     return Response(serializer.data)
+

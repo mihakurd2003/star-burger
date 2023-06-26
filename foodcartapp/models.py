@@ -4,6 +4,8 @@ from phonenumber_field.modelfields import PhoneNumberField
 from django.db.models import F, Sum
 from django.utils import timezone
 
+from locationapp.models import Location
+
 
 class Restaurant(models.Model):
     name = models.CharField(
@@ -128,18 +130,18 @@ class RestaurantMenuItem(models.Model):
 
 class OrderQuerySet(models.QuerySet):
 
-    def get_order_amount(self):
-        order_items = self.annotate(order_cost=Sum(F('items__price') * F('items__quantity'))).order_by('id')
+    def get_order_price(self):
+        order_items = self.annotate(order_cost=Sum(F('items__price') * F('items__quantity')))
 
         return order_items
 
 
 class Order(models.Model):
     ORDER_STATUSES = [
-        ('raw', 'Необработанный'),
-        ('in_assemble', 'В сборке'),
-        ('in_delivery', 'В доставке'),
-        ('completed', 'Выполнен'),
+        (0, 'Необработанный'),
+        (1, 'Готовится'),
+        (2, 'В доставке'),
+        (3, 'Выполнен'),
     ]
     PAYMENT_METHODS = [
         ('cash', 'Наличностью'),
@@ -150,12 +152,18 @@ class Order(models.Model):
     lastname = models.CharField('Фамилия', max_length=50, db_index=True)
     phonenumber = PhoneNumberField('Телефон', db_index=True, region='RU')
     address = models.CharField('Адрес', max_length=200, db_index=True)
-    status = models.CharField(
+    status = models.IntegerField(
         'Статус заказа',
         choices=ORDER_STATUSES,
-        max_length=30,
-        default='raw',
+        default=0,
         db_index=True
+    )
+    restaurant = models.ForeignKey(
+        Restaurant,
+        verbose_name='В каком ресторане готовить',
+        on_delete=models.CASCADE,
+        related_name='orders',
+        null=True, blank=True,
     )
     comment = models.TextField(
         'Комментарий',
@@ -190,8 +198,14 @@ class Order(models.Model):
         verbose_name = 'заказ'
         verbose_name_plural = 'заказы'
 
+    def save(
+        self, force_insert=False, force_update=False, using=None, update_fields=None
+    ):
+        self.status = 1 if self.restaurant else 0
+        super(Order, self).save(force_insert=False, force_update=False, using=None, update_fields=None)
+
     def __str__(self):
-        return f'{self.firstname} {self.lastname}, {self.address} Статус: {self.status}'
+        return f'{self.firstname} {self.lastname}, {self.address}'
 
 
 class OrderItem(models.Model):
@@ -223,4 +237,6 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f'{self.product} - {self.quantity}, {self.order}'
+
+
 

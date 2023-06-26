@@ -1,15 +1,17 @@
 from django import forms
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect, render, get_object_or_404
 from django.views import View
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import user_passes_test
+import requests
+from geopy import distance
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
 
-
 from foodcartapp.models import Product, Restaurant
-from foodcartapp.models import Order, OrderItem
+from foodcartapp.models import Order
+from locationapp.models import Location
 
 
 class Login(forms.Form):
@@ -91,9 +93,65 @@ def view_restaurants(request):
     })
 
 
+def fetch_coordinates(apikey, address):
+    base_url = "https://geocode-maps.yandex.ru/1.x"
+    response = requests.get(base_url, params={
+        "geocode": address,
+        "apikey": apikey,
+        "format": "json",
+    })
+    response.raise_for_status()
+    found_places = response.json()['response']['GeoObjectCollection']['featureMember']
+
+    if not found_places:
+        return None
+
+    most_relevant = found_places[0]
+    lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
+    return lon, lat
+
+
+def find_common_objects(querysets):
+    if not querysets:
+        return None
+
+    common_objects = querysets[0]
+    for queryset in querysets:
+        common_objects = common_objects.intersection(queryset)
+
+    return common_objects
+
+
+def get_distance(order):
+    order_address_location = get_object_or_404(Location, address=order.address)
+    if not order_address_location.lat:
+        order.no_coordinates = True
+        return
+
+    order_lon, order_lat = order_address_location.lon, order_address_location.lat
+
+    for restaurant in order.available_restaurants:
+        restaurant_address_location = get_object_or_404(Location, address=restaurant.address)
+        if not restaurant_address_location.lat:
+            continue
+
+        restaurant_lon, restaurant_lat = restaurant_address_location.lon, restaurant_address_location.lat
+        restaurant.distance = f'- {round(distance.distance((order_lat, order_lon), (restaurant_lat, restaurant_lon)).km, 2)} км'
+
+
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    order_items = Order.objects.filter(status='raw').get_order_amount()
+    order_items = Order.objects.prefetch_related('items__product')\
+        .get_order_price() \
+        .order_by('status', 'id')
+
+    for order in order_items:
+        restaurants = []
+        for item in order.items.all():
+            restaurants.append(Restaurant.objects.filter(menu_items__product=item.product, menu_items__availability=True))
+        order.available_restaurants = find_common_objects(restaurants)
+
+        get_distance(order)
 
     return render(request, template_name='order_items.html', context={
         'order_items': order_items

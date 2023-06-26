@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models import Q
 from django.shortcuts import reverse, redirect
 from django.templatetags.static import static
 from django.utils.html import format_html
@@ -8,6 +9,8 @@ from .models import Product, ProductCategory
 from .models import Restaurant, RestaurantMenuItem
 from .models import Order, OrderItem
 
+from restaurateur.views import find_common_objects
+
 
 class RestaurantMenuItemInline(admin.TabularInline):
     model = RestaurantMenuItem
@@ -16,7 +19,6 @@ class RestaurantMenuItemInline(admin.TabularInline):
 
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
-    raw_id_fields = ['product']
     extra = 0
 
 
@@ -144,6 +146,26 @@ class OrderAdmin(admin.ModelAdmin):
             return redirect('restaurateur:view_orders')
 
         return super(OrderAdmin, self).response_change(request, obj)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'restaurant' and request.resolver_match.url_name == 'foodcartapp_order_change':
+            order_id = request.resolver_match.kwargs.get('object_id', None)
+            order = self.get_object(request, object_id=order_id)
+            restaurants = []
+            for item in order.items.all():
+                restaurants.append(
+                    Restaurant.objects.filter(
+                        menu_items__product=item.product,
+                        menu_items__availability=True
+                    )
+                )
+
+            available_restaurants = find_common_objects(restaurants)
+            kwargs['queryset'] = Restaurant.objects.filter(
+                id__in=available_restaurants.values_list('id', flat=True)
+            )
+
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(OrderItem)

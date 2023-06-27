@@ -146,9 +146,12 @@ def view_orders(request):
         .order_by('status', 'id')
 
     for order in order_items:
-        restaurants = []
-        for item in order.items.all():
-            restaurants.append(Restaurant.objects.filter(menu_items__product=item.product, menu_items__availability=True))
+        restaurants = [
+            Restaurant.objects.filter(
+                menu_items__product=item.product,
+                menu_items__availability=True
+            ) for item in order.items.all()
+        ]
         order.available_restaurants = find_common_objects(restaurants)
 
         get_distance(order)

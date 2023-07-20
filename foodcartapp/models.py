@@ -169,7 +169,7 @@ class Order(models.Model):
         'Комментарий',
         blank=True,
     )
-    registrated_at = models.DateTimeField(
+    registered_at = models.DateTimeField(
         'Дата и время оформления',
         default=timezone.now,
         db_index=True,
@@ -188,7 +188,6 @@ class Order(models.Model):
         'Способ оплаты',
         choices=PAYMENT_METHODS,
         max_length=20,
-        default='cash',
         db_index=True,
     )
 
@@ -197,12 +196,6 @@ class Order(models.Model):
     class Meta:
         verbose_name = 'заказ'
         verbose_name_plural = 'заказы'
-
-    def save(
-        self, force_insert=False, force_update=False, using=None, update_fields=None
-    ):
-        self.status = 1 if self.restaurant else 0
-        super(Order, self).save(force_insert=False, force_update=False, using=None, update_fields=None)
 
     def __str__(self):
         return f'{self.firstname} {self.lastname}, {self.address}'
@@ -221,14 +214,17 @@ class OrderItem(models.Model):
         verbose_name='Заказ',
         related_name='items',
     )
-    quantity = models.IntegerField('Количество', db_index=True)
+    quantity = models.IntegerField(
+        'Количество',
+        db_index=True,
+        validators=[MinValueValidator(0)],
+    )
     price = models.DecimalField(
         'Цена',
         max_digits=8,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-        null=True,
-        blank=True,
+        default=0,
     )
 
     class Meta:

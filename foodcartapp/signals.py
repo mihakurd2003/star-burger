@@ -1,22 +1,20 @@
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-
+import requests
 from django.conf import settings
-
+from django.db.models.signals import post_save, pre_save
+from django.dispatch import receiver
 from django.utils import timezone
-from requests.exceptions import HTTPError
 
-from locationapp.models import Location
 from foodcartapp.models import Order, Restaurant
-from restaurateur.views import fetch_coordinates
+from locationapp.models import Location
+from restaurateur.coordinates import fetch_coordinates
 
 
 @receiver(post_save, sender=Order)
 def create_order_location(sender, instance, created, **kwargs):
     try:
         order_address_coord = fetch_coordinates(settings.GEO_API_KEY, instance.address)
-    except HTTPError:
-        return
+    except Exception as exc:
+        return exc
 
     order_lon, order_lat = order_address_coord if order_address_coord else (None, None)
 
@@ -42,7 +40,7 @@ def create_order_location(sender, instance, created, **kwargs):
 def create_restaurant_location(sender, instance, created, **kwargs):
     try:
         restaurant_address_coord = fetch_coordinates(settings.GEO_API_KEY, instance.address)
-    except HTTPError:
+    except requests.exceptions.HTTPError:
         return
 
     restaurant_lon, restaurant_lat = restaurant_address_coord if restaurant_address_coord else (None, None)
@@ -64,3 +62,8 @@ def create_restaurant_location(sender, instance, created, **kwargs):
                 'request_dt': timezone.now(),
             }
         )
+
+
+@receiver(pre_save, sender=Order)
+def fill_status(sender, instance, **kwargs):
+    instance.status = 1 if instance.restaurant else 0

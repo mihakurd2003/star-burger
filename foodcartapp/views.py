@@ -1,15 +1,16 @@
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 from rest_framework.decorators import api_view
+from rest_framework.generics import CreateAPIView, UpdateAPIView, DestroyAPIView
 from rest_framework.response import Response
-from rest_framework.serializers import ValidationError, ModelSerializer
-from rest_framework.serializers import CharField
-from django.db import transaction
-import phonenumbers
+from rest_framework import status
+
+from .forms import OrderForm
 
 from .models import Product
-from .models import Order, OrderItem
-from banners.models import Banner
+from .models import Order
+from .serializers import OrderSerializer
 
 
 def product_list_api(request):
@@ -40,46 +41,28 @@ def product_list_api(request):
     })
 
 
-class OrderItemSerializer(ModelSerializer):
-    class Meta:
-        model = OrderItem
-        fields = ['id', 'product', 'quantity', 'price']
+class OrderRegisterAPIView(CreateAPIView):
+    serializer_class = OrderSerializer
+    queryset = Order.objects.all()
 
 
-class OrderSerializer(ModelSerializer):
-    products = OrderItemSerializer(many=True, allow_empty=False, write_only=True)
-    phonenumber = CharField()
+class OrderUpdateAPIView(UpdateAPIView):
+    serializer_class = OrderSerializer
+    queryset = Order.objects.all()
+    lookup_field = 'id'
 
-    class Meta:
-        model = Order
-        fields = ['id', 'firstname', 'lastname', 'phonenumber', 'address', 'products']
+    def get_serializer(self, *args, **kwargs):
+        kwargs['partial'] = True
+        return super().get_serializer(*args, **kwargs)
 
-    @transaction.atomic
-    def create(self, validated_data):
-        order, is_create = Order.objects.get_or_create(
-            firstname=validated_data['firstname'],
-            lastname=validated_data['lastname'],
-            phonenumber=validated_data['phonenumber'],
-            address=validated_data['address'],
-        )
 
-        product_fields = [{**field, 'price': field['product'].price} for field in validated_data['products']]
-        products = [OrderItem(order=order, **product) for product in product_fields]
-        OrderItem.objects.bulk_create(products)
+class OrderDeleteAPIView(DestroyAPIView):
+    serializer_class = OrderSerializer
+    queryset = Order.objects.all()
+    lookup_field = 'id'
 
-        return order
 
-    def validate_phonenumber(self, value):
-        error_msg = 'Введен некорректный номер телефона.'
-        try:
-            phonenumber = phonenumbers.parse(value, 'RU')
-            if not phonenumbers.is_valid_number(phonenumber):
-                raise ValidationError(error_msg)
-        except phonenumbers.phonenumberutil.NumberParseException:
-            raise ValidationError(error_msg)
-
-        return value
-
+# TODO: Внизу старый код, но полезный (1 способ)
 
 @api_view(['POST'])
 def register_order(request):
@@ -87,8 +70,63 @@ def register_order(request):
     serializer.is_valid(raise_exception=True)
 
     order = serializer.create(serializer.validated_data)
-
     serializer = OrderSerializer(order)
 
     return Response(serializer.data)
+
+
+@api_view(['PUT'])
+def update_order(request, id_order):
+    if request.GET.get('in_admin', 0) and url_has_allowed_host_and_scheme(request.path, None):
+        return redirect('admin:foodcartapp_order_change', id_order)
+
+    order = get_object_or_404(Order, id=id_order)
+    serializer = OrderSerializer(data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+
+    updated_order = serializer.update(order, serializer.validated_data)
+    serializer = OrderSerializer(updated_order)
+
+    return Response(serializer.data)
+
+
+@api_view(['DELETE'])
+def delete_order(request, id_order):
+    order = get_object_or_404(Order.objects.prefetch_related('items'), id=id_order)
+    deleted_order = {
+        'firstname': order.firstname,
+        'lastname': order.lastname,
+        'phonenumber': str(order.phonenumber),
+        'address': order.address,
+        'order_elements': [
+            {
+                'product': item.product.name,
+                'quantity': item.quantity,
+             } for item in order.items.all()
+        ],
+        'registered_at': order.registered_at,
+        'called_at': order.called_at,
+        'delivered_at': order.delivered_at,
+    }
+    order.delete()
+    return Response(
+        deleted_order,
+        status=status.HTTP_200_OK,
+    )
+
+
+def edit_order(request, id_order):
+    order = get_object_or_404(Order, id=id_order)
+
+    if request.method == 'POST':
+        form = OrderForm(request.POST, instance=order)
+        if form.is_valid():
+            form.save()
+
+    else:
+        form = OrderForm(instance=order)
+
+    return render(request, 'edit_order.html', {'form': form})
+
+
 

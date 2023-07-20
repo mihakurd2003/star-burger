@@ -16,19 +16,26 @@
         <form method="post">
           {% csrf_token %}
 
-          {{ form.non_field_errors }}
+          <input type="hidden" name="next" value="{{ request.GET.next }}"/>
 
-          {% if ivalid %}
+          {% if invalid %}
             <div class="alert alert-danger" role="alert">Неверный логин / пароль.</div>
           {% endif %}
 
-          <input type="hidden" name="next" value="{{ request.GET.next }}"/>
-
-          {{form.as_p}}
+          {% for field in form %}
+            <div class="form-group">
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+            </div>
+          {% endfor %}
           <button class="btn btn-primary" type="submit">Войти</button>
         </form>
       </div>
 
+    </div>
+    <hr>
+    <div class="text-center">
+        Нужен аккаунт? <a href="{% url 'restaurateur:register' %}" style="text-decoration:none">Зарегистрироваться</a>
     </div>
   </div>
 {% endblock %}

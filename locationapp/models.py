@@ -19,7 +19,6 @@ class Location(models.Model):
     request_dt = models.DateTimeField(
         'Дата и время запроса',
         default=timezone.now,
-        unique=True,
     )
 
     class Meta:

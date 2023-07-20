@@ -1,4 +1,3 @@
-from django import forms
 from django.shortcuts import redirect, render, get_object_or_404
 from django.views import View
 from django.urls import reverse_lazy
@@ -6,6 +5,7 @@ from django.contrib.auth.decorators import user_passes_test
 import requests
 from geopy import distance
 
+from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
 
@@ -13,22 +13,34 @@ from foodcartapp.models import Product, Restaurant
 from foodcartapp.models import Order
 from locationapp.models import Location
 
+from .forms import Login, Registration
 
-class Login(forms.Form):
-    username = forms.CharField(
-        label='Логин', max_length=75, required=True,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Укажите имя пользователя'
-        })
-    )
-    password = forms.CharField(
-        label='Пароль', max_length=75, required=True,
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Введите пароль'
-        })
-    )
+
+def is_manager(user):
+    return user.is_staff
+
+
+class RegistrationView(View):
+    def get(self, request, *args, **kwargs):
+        form = Registration()
+        return render(request, 'registration.html', {'form': form})
+
+    def post(self, request):
+        form = Registration(request.POST)
+
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            password = form.cleaned_data['password']
+
+            user = User.objects.create_user(
+                username=username,
+                password=password,
+            )
+            user.save()
+            login(request, user)
+            return redirect("restaurateur:RestaurantView") if user.is_staff else redirect("start_page")
+
+        return render(request, 'registration.html', {'form': form})
 
 
 class LoginView(View):
@@ -48,7 +60,7 @@ class LoginView(View):
             user = authenticate(request, username=username, password=password)
             if user:
                 login(request, user)
-                if user.is_staff:  # FIXME replace with specific permission
+                if is_manager(user):
                     return redirect("restaurateur:RestaurantView")
                 return redirect("start_page")
 
@@ -60,10 +72,6 @@ class LoginView(View):
 
 class LogoutView(auth_views.LogoutView):
     next_page = reverse_lazy('restaurateur:login')
-
-
-def is_manager(user):
-    return user.is_staff  # FIXME replace with specific permission
 
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
@@ -91,24 +99,6 @@ def view_restaurants(request):
     return render(request, template_name="restaurants_list.html", context={
         'restaurants': Restaurant.objects.all(),
     })
-
-
-def fetch_coordinates(apikey, address):
-    base_url = "https://geocode-maps.yandex.ru/1.x"
-    response = requests.get(base_url, params={
-        "geocode": address,
-        "apikey": apikey,
-        "format": "json",
-    })
-    response.raise_for_status()
-    found_places = response.json()['response']['GeoObjectCollection']['featureMember']
-
-    if not found_places:
-        return None
-
-    most_relevant = found_places[0]
-    lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
-    return lon, lat
 
 
 def find_common_objects(querysets):

@@ -122,7 +122,7 @@ class OrderAdmin(admin.ModelAdmin):
         'status',
         'phonenumber',
         'address',
-        'registrated_at'
+        'registered_at'
     ]
     search_fields = [
         'firstname',

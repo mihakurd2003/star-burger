@@ -1,5 +1,5 @@
 from django.db import migrations
-from restaurateur.views import fetch_coordinates
+from restaurateur.coordinates import fetch_coordinates
 
 from django.conf import settings
 

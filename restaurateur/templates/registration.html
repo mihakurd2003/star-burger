@@ -1,0 +1,51 @@
+{% extends 'base_restaurateur_page.html' %}
+
+{% block header_nav %}{% endblock %}
+
+{% block title %}Регистрация | Star Burger{% endblock %}
+
+{% block content %}
+  <div class="container text-center">
+    <h2 style="margin-top: 60px;">Регистрация</h2>
+
+    <hr/>
+
+    <div class="row">
+      <div class="col-sm-offset-4 col-sm-4">
+        <form method="post">
+          {% csrf_token %}
+
+          <input type="hidden" name="next" value="{{ request.GET.next }}"/>
+          {% if form.non_field_errors %}
+            {% for error in form.non_field_errors %}
+              <div class="alert alert-danger" role="alert">
+                {{ error }}
+              </div>
+            {% endfor %}
+          {% endif %}
+
+          {% for field in form %}
+            <div class="form-group">
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}
+                <div class="warn alert-danger " role="alert">
+                  {% for error in field.errors %}
+                    <span>{{ error }}</span>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+          <button class="btn btn-primary" type="submit">Зарегистрироваться</button>
+        </form>
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="text-center">
+      Уже есть аккаунт? <a href="{% url 'restaurateur:login' %}" style="text-decoration:none">Войти</a>
+    </div>
+  </div>
+{% endblock %}

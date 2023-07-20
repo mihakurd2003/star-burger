@@ -1,0 +1,13 @@
+{% extends 'base_restaurateur_page.html' %}
+
+{% block title %}Редактиорвание заказа | Star Burger{% endblock %}
+
+{% block content %}
+  <div class="container">
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button type="submit">Сохранить</button>
+    </form>
+  </div>
+{% endblock %}

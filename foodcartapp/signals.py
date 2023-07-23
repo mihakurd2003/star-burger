@@ -66,4 +66,4 @@ def create_restaurant_location(sender, instance, created, **kwargs):
 
 @receiver(pre_save, sender=Order)
 def fill_status(sender, instance, **kwargs):
-    instance.status = 1 if instance.restaurant else 0
+    instance.status = 1 if instance.performing_restaurant else 0

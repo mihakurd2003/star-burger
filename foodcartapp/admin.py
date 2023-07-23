@@ -148,7 +148,7 @@ class OrderAdmin(admin.ModelAdmin):
         return super(OrderAdmin, self).response_change(request, obj)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == 'restaurant' and request.resolver_match.url_name == 'foodcartapp_order_change':
+        if db_field.name == 'performing_restaurant' and request.resolver_match.url_name == 'foodcartapp_order_change':
             order_id = request.resolver_match.kwargs.get('object_id', None)
             order = self.get_object(request, object_id=order_id)
             restaurants = []

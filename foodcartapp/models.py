@@ -1,10 +1,18 @@
-from django.db import models
 from django.core.validators import MinValueValidator
-from phonenumber_field.modelfields import PhoneNumberField
+from django.db import models
 from django.db.models import F, Sum
 from django.utils import timezone
+from phonenumber_field.modelfields import PhoneNumberField
 
 from locationapp.models import Location
+
+
+class RestaurantQuerySet(models.QuerySet):
+    def get_available_restaurant(self, product):
+        return self.filter(
+            menu_items__product=product,
+            menu_items__availability=True
+        )
 
 
 class Restaurant(models.Model):
@@ -22,6 +30,8 @@ class Restaurant(models.Model):
         max_length=50,
         blank=True,
     )
+
+    objects = RestaurantQuerySet.as_manager()
 
     class Meta:
         verbose_name = 'ресторан'
@@ -158,7 +168,7 @@ class Order(models.Model):
         default=0,
         db_index=True
     )
-    restaurant = models.ForeignKey(
+    performing_restaurant = models.ForeignKey(
         Restaurant,
         verbose_name='В каком ресторане готовить',
         on_delete=models.CASCADE,
@@ -217,14 +227,14 @@ class OrderItem(models.Model):
     quantity = models.IntegerField(
         'Количество',
         db_index=True,
-        validators=[MinValueValidator(0)],
+        validators=[MinValueValidator(1)],
     )
     price = models.DecimalField(
         'Цена',
         max_digits=8,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-        default=0,
+        blank=True,
     )
 
     class Meta:
@@ -233,6 +243,3 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f'{self.product} - {self.quantity}, {self.order}'
-
-
-

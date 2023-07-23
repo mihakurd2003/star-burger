@@ -1,18 +1,16 @@
-from django.shortcuts import redirect, render, get_object_or_404
-from django.views import View
-from django.urls import reverse_lazy
-from django.contrib.auth.decorators import user_passes_test
-import requests
-from geopy import distance
-
-from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
+from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth.models import User
+from django.db.models import Subquery, OuterRef, Q
+from django.shortcuts import redirect, render, get_object_or_404
+from django.urls import reverse_lazy
+from django.views import View
+from geopy import distance
 
-from foodcartapp.models import Product, Restaurant
 from foodcartapp.models import Order
+from foodcartapp.models import Product, Restaurant
 from locationapp.models import Location
-
 from .forms import Login, Registration
 
 
@@ -137,10 +135,8 @@ def view_orders(request):
 
     for order in order_items:
         restaurants = [
-            Restaurant.objects.filter(
-                menu_items__product=item.product,
-                menu_items__availability=True
-            ) for item in order.items.all()
+            Restaurant.objects.get_available_restaurant(item.product)
+            for item in order.items.all()
         ]
         order.available_restaurants = find_common_objects(restaurants)
 

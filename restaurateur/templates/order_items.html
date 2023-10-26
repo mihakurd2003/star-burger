@@ -38,7 +38,7 @@
         <td>
           {% if item.no_coordinates %}
             Ошибка определения координат
-          {% elif not item.restaurant and item.available_restaurants %}
+          {% elif not item.performing_restaurant and item.available_restaurants %}
             <details open>
               <summary>Может быть приготовлен ресторанами:</summary>
               <ul>
@@ -50,7 +50,7 @@
           {% elif not item.available_restaurants %}
             Нет ресторанов, которые могут приготовить заказ
           {% else %}
-            Готовит {{ item.restaurant }}
+            Готовит {{ item.performing_restaurant }}
           {% endif %}
         </td>
         <td>
